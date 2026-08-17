@@ -1,0 +1,15 @@
+# dsh-mcp-manager cordis patch
+#
+# 一个条目同时承担两个角色：
+#   - Node 端：加载 main (index.js) → 注册 mcp_list/add/remove/test_connection 工具
+#   - 浏览器端：client-modules 扫描到 dsh.client 声明 → 服务 lib/client.js → Settings 页出现 MCP Manager 配置卡片
+#
+# 前提：profile 的 node_modules/dsh-mcp-manager → /mnt/data/work/et/arcwrt0812/dsh-mcp-manager
+#   已通过符号链接完成，使 require.resolve('dsh-mcp-manager/package.json') 可用。
+#
+# 用法：
+#   dsh web --patch /mnt/data/work/et/arcwrt0812/dsh-mcp-manager/cordis.patch.yml
+
+- insert:
+    - id: mcp-manager
+      name: 'dsh-mcp-manager'

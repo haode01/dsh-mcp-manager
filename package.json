@@ -1,0 +1,44 @@
+{
+  "name": "dsh-mcp-manager",
+  "version": "0.1.0",
+  "description": "MCP connection manager for DeepSeek Harness: list, add, remove, and test MCP server connections at runtime",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "lib/client.js",
+    "lib/*.js",
+    "src/client/*.js",
+    "skills/*.md",
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-locale"
+      ],
+      "platform": "web"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": ">=0.1.0-rc.0",
+    "@deepseek-ai/cordis": ">=4.0.0-rc.0",
+    "@deepseek-ai/dsh-mcp-client": ">=0.0.1",
+    "@deepseek-ai/dsh-timeout": ">=0.1.0-rc.0",
+    "@deepseek-ai/dsh-settings": ">=0.1.0-rc.0",
+    "@deepseek-ai/schemastery": "*"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  }
+}
