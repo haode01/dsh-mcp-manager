@@ -34,31 +34,48 @@ Manage MCP server connections from the DSH Web GUI Settings → Plugins page, an
 
 All reads and writes go through a single JSON file. The UI calls the HTTP endpoint; server tools write the same file. At startup, connections are restored automatically.
 
-## Usage
+## Installation
 
-### 1. Symlink into DSH profile
+### Option 1: Git clone + symlink (recommended)
 
 ```bash
+# Clone to a stable location
+git clone https://github.com/haode01/dsh-mcp-manager.git /path/to/dsh-mcp-manager
+
+# Symlink into DSH's web profile so the loader can resolve the package
 ln -s /path/to/dsh-mcp-manager ~/.dsh/profiles/web/node_modules/dsh-mcp-manager
-```
 
-### 2. Start DSH with the patch
-
-```bash
+# Start DSH with the patch
 dsh web --patch /path/to/dsh-mcp-manager/cordis.patch.yml
 ```
 
-### 3. Add connections
+### Option 2: npm install in profile
 
-**From UI**: Settings → Plugins → MCP Manager → fill form → Add.
+```bash
+cd ~/.dsh/profiles/web
+npm install /path/to/dsh-mcp-manager   # or: npm install github:haode01/dsh-mcp-manager
 
-**From chat**: ask AI to call `mcp_add_connection`, e.g.:
+# Start DSH with the patch
+dsh web --patch /path/to/dsh-mcp-manager/cordis.patch.yml
+```
 
-> Add an MCP connection to http://10.118.81.110:3100/mcp/openwrt with server name "openwrt"
+### Option 3: Cordis config reference
 
-### 4. Test a connection
+Add to your existing DSH cordis config:
 
-Click **Test** in the UI to probe the MCP endpoint and see its tools. No persistence — test only.
+```yaml
+- insert:
+    - id: mcp-manager
+      name: 'dsh-mcp-manager'
+```
+
+Then start DSH with that config file.
+
+### Verify
+
+After starting DSH, open Settings → Plugins. You should see an **MCP Manager** card. In chat, `mcp_list_connections` should return (initially empty) results.
+
+## Usage
 
 ## File structure
 
