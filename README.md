@@ -36,26 +36,27 @@ All reads and writes go through a single JSON file. The UI calls the HTTP endpoi
 
 ## Installation
 
-### Option 1: Git clone + symlink (recommended)
+### Option 1: `dsh plugin add` (recommended)
 
 ```bash
-# Clone to a stable location
-git clone https://github.com/haode01/dsh-mcp-manager.git /path/to/dsh-mcp-manager
-
-# Symlink into DSH's web profile so the loader can resolve the package
-ln -s /path/to/dsh-mcp-manager ~/.dsh/profiles/web/node_modules/dsh-mcp-manager
-
-# Start DSH with the patch
-dsh web --patch /path/to/dsh-mcp-manager/cordis.patch.yml
+dsh plugin --profile web add github:haode01/dsh-mcp-manager
 ```
 
-### Option 2: npm install in profile
+This installs the package into `~/.dsh/profiles/web/`, auto-adds it to `cordis.yml`
+as a profile bundle layer, and resolves the patch path automatically. No manual
+symlink or `--patch` flag needed.
+
+Restart DSH after installing:
 
 ```bash
-cd ~/.dsh/profiles/web
-npm install /path/to/dsh-mcp-manager   # or: npm install github:haode01/dsh-mcp-manager
+dsh web
+```
 
-# Start DSH with the patch
+### Option 2: Git clone + symlink
+
+```bash
+git clone https://github.com/haode01/dsh-mcp-manager.git /path/to/dsh-mcp-manager
+ln -s /path/to/dsh-mcp-manager ~/.dsh/profiles/web/node_modules/dsh-mcp-manager
 dsh web --patch /path/to/dsh-mcp-manager/cordis.patch.yml
 ```
 
@@ -69,7 +70,8 @@ Add to your existing DSH cordis config:
       name: 'dsh-mcp-manager'
 ```
 
-Then start DSH with that config file.
+Then start DSH with that config file. Requires the package to be resolvable
+from `~/.dsh/profiles/web/` (e.g. via symlink).
 
 ### Verify
 
