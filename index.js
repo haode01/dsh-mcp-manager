@@ -136,6 +136,9 @@ export function apply(ctx) {
           })
           saveConnectionsToDisk(clean)
           await reconcileManagedConnections(ctx, clean)
+          // Debug: verify loader state
+          const afterList = listConnections(ctx)
+          console.error('[mcp-manager] POST reconcile done. loader entries:', afterList.length, JSON.stringify(afterList.map(function(c){return c.serverName+':'+c.transport})))
           res.writeHead(200, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ ok: true, count: clean.length }))
         } else {
