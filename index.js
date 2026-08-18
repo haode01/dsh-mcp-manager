@@ -39,58 +39,55 @@ function saveConnectionsToDisk(list) {
 /**
  * Restore persisted connections from disk on startup.
  */
+// ─── Connection lifecycle ───
+
+/**
+ * Restore connections from a config array — add those that don't exist yet.
+ * Does NOT remove existing connections; use reconcileManagedConnections for that.
+ */
 async function restoreConnections(ctx, section) {
   if (!Array.isArray(section)) return
   for (const cfg of section) {
     if (!cfg.serverName || !cfg.transport) continue
+    const mcpConfig = normalizeConfig(cfg)
+    if (!mcpConfig.command && !mcpConfig.url) continue
     try {
-      const mcpConfig = {
-        serverName: cfg.serverName,
-        transport: cfg.transport,
-      }
-      if (cfg.transport === 'stdio') {
-        if (!cfg.command) continue
-        mcpConfig.command = cfg.command
-        if (cfg.args) mcpConfig.args = cfg.args
-        if (cfg.env) mcpConfig.env = cfg.env
-        if (cfg.cwd) mcpConfig.cwd = cfg.cwd
-      } else {
-        if (!cfg.url) continue
-        mcpConfig.url = cfg.url
-        if (cfg.token) mcpConfig.headers = { Authorization: `Bearer ${cfg.token}` }
-      }
-      if (cfg.timeout) mcpConfig.toolCallTimeoutMs = cfg.timeout
       await addConnection(ctx, mcpConfig)
-    } catch (_) { /* skip bad entries */ }
+    } catch (e) {
+      console.error('[mcp-manager] restoreConnections: addConnection failed for', cfg.serverName, ':', e.message)
+    }
   }
 }
 
 /**
  * Full reconcile: remove all, re-add all. Called on POST from UI.
+ * Used for UI-driven full-sync (Add/Remove/Clear).
  */
 async function reconcileManagedConnections(ctx, section) {
   const current = listConnections(ctx)
   for (const conn of current) {
     try { await removeConnection(ctx, conn.serverName) } catch (_) {}
   }
+  // Brief wait for fibers to settle
+  await new Promise(resolve => setTimeout(resolve, 200))
   if (Array.isArray(section)) {
     await restoreConnections(ctx, section)
   }
 }
 
-/** Normalize a connection config from UI/client format to mcpConfig. */
+/** Normalize a connection config from UI/file format to mcpConfig. */
 function normalizeConfig(cfg) {
   const mcpConfig = {
     serverName: cfg.serverName,
     transport: cfg.transport,
   }
   if (cfg.transport === 'stdio') {
-    mcpConfig.command = cfg.command
+    mcpConfig.command = cfg.command || ''
     if (cfg.args) mcpConfig.args = cfg.args
     if (cfg.env) mcpConfig.env = cfg.env
     if (cfg.cwd) mcpConfig.cwd = cfg.cwd
   } else {
-    mcpConfig.url = cfg.url
+    mcpConfig.url = cfg.url || ''
     if (cfg.token) mcpConfig.headers = { Authorization: `Bearer ${cfg.token}` }
   }
   if (cfg.timeout) mcpConfig.toolCallTimeoutMs = cfg.timeout
@@ -136,9 +133,6 @@ export function apply(ctx) {
           })
           saveConnectionsToDisk(clean)
           await reconcileManagedConnections(ctx, clean)
-          // Debug: verify loader state
-          const afterList = listConnections(ctx)
-          console.error('[mcp-manager] POST reconcile done. loader entries:', afterList.length, JSON.stringify(afterList.map(function(c){return c.serverName+':'+c.transport})))
           res.writeHead(200, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ ok: true, count: clean.length }))
         } else {
