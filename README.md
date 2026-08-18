@@ -1,21 +1,23 @@
-# dsh-mcp-manager · 中文
+# dsh-mcp-manager
 
-MCP 连接生命周期管理插件 —— DeepSeek Harness。
+[English](README.md) | [中文](README.zh.md)
 
-在 DSH Web GUI 的 Settings → Plugins 页面管理 MCP 服务器连接，也在对话中通过工具调用。所有变更持久化到 `~/.dsh/mcp-connections.json`，重启不丢失。
+MCP connection lifecycle management plugin for DeepSeek Harness.
 
-## 功能
+Manage MCP server connections from the DSH Web GUI Settings → Plugins page, and from chat via `mcp_list_connections` / `mcp_add_connection` / `mcp_remove_connection` / `mcp_test_connection` tools. All changes persist to `~/.dsh/mcp-connections.json` and survive restarts.
 
-| 功能 | UI（Settings → Plugins） | 对话（工具） |
-|------|------------------------|--------------|
-| 列出连接 | ✅ | `mcp_list_connections` |
-| 添加连接（HTTP / stdio） | ✅ | `mcp_add_connection` |
-| 删除连接 | ✅ | `mcp_remove_connection` |
-| 测试连接 + 展示工具列表 | ✅ | `mcp_test_connection` |
-| 持久化跨重启不丢失 | ✅（自动） | ✅（自动） |
-| Stdio 自动下载 + 进度条 | ✅ | — |
+## Features
 
-## 架构
+| Feature | UI (Settings → Plugins) | Chat (tools) |
+|---------|------------------------|--------------|
+| List connections | ✅ | `mcp_list_connections` |
+| Add connection (HTTP/stdio) | ✅ | `mcp_add_connection` |
+| Remove connection | ✅ | `mcp_remove_connection` |
+| Test connection + show tools | ✅ | `mcp_test_connection` |
+| Persist across restarts | ✅ (auto) | ✅ (auto) |
+| Stdio auto-download + progress bar | ✅ | — |
+
+## Architecture
 
 ```
 ┌──────────────┐     GET/POST      ┌─────────────────────────┐
@@ -33,25 +35,25 @@ MCP 连接生命周期管理插件 —— DeepSeek Harness。
                                     └──────────────────────────┘
 ```
 
-所有读写经过同一个 JSON 文件。UI 调 HTTP 端点；服务端工具写同一文件。启动时自动恢复连接。
+All reads and writes go through a single JSON file. The UI calls the HTTP endpoint; server tools write the same file. At startup, connections are restored automatically.
 
-## 安装
+## Installation
 
-### 方式一：`dsh plugin add`（推荐）
+### Option 1: `dsh plugin add` (recommended)
 
 ```bash
 dsh plugin --profile web add github:haode01/dsh-mcp-manager
 ```
 
-安装到 `~/.dsh/profiles/web/`，自动加入 `cordis.yml` 作为 profile bundle 层，无需手动 symlink 或 `--patch`。
+Installs into `~/.dsh/profiles/web/`, auto-adds to `cordis.yml` as a profile bundle layer. No manual symlink or `--patch` needed.
 
-安装后重启 DSH：
+Restart DSH:
 
 ```bash
 dsh web
 ```
 
-### 方式二：Git clone + symlink
+### Option 2: Git clone + symlink
 
 ```bash
 git clone https://github.com/haode01/dsh-mcp-manager.git /path/to/dsh-mcp-manager
@@ -59,9 +61,7 @@ ln -s /path/to/dsh-mcp-manager ~/.dsh/profiles/web/node_modules/dsh-mcp-manager
 dsh web --patch /path/to/dsh-mcp-manager/cordis.patch.yml
 ```
 
-### 方式三：Cordis 配置引用
-
-在已有 DSH cordis 配置中加入：
+### Option 3: Cordis config
 
 ```yaml
 - insert:
@@ -69,41 +69,39 @@ dsh web --patch /path/to/dsh-mcp-manager/cordis.patch.yml
       name: 'dsh-mcp-manager'
 ```
 
-然后用该配置文件启动 DSH。要求包可从 `~/.dsh/profiles/web/` 解析（如通过 symlink）。
+### Verify
 
-### 验证
+Open Settings → Plugins — an **MCP Manager** card should appear. In chat, `mcp_list_connections` should respond.
 
-启动 DSH 后打开 Settings → Plugins，应看到 **MCP Manager** 卡片。在对话中 `mcp_list_connections` 应返回结果（初始为空）。
+## Usage
 
-## 使用
+### Add from UI
 
-### UI 添加连接
+1. Settings → Plugins → MCP Manager → expand card
+2. Choose HTTP or Stdio tab
+3. HTTP: server name + URL (optional Bearer token)
+4. Stdio: server name + full command (e.g. `npx -y @mozilla/firefox-devtools-mcp@latest`)
+5. Click **Add** → auto-save → auto-test → tool list with progress bar
 
-1. Settings → Plugins → MCP Manager → 展开卡片
-2. 选择 HTTP 或 Stdio tab
-3. HTTP：填服务器名 + URL（可选 Bearer token）
-4. Stdio：填服务器名 + 完整命令（如 `npx -y @mozilla/firefox-devtools-mcp@latest`）
-5. 点 **Add** → 自动保存 → 自动测试 → 显示工具列表及进度条
+### Add from chat
 
-### 对话中添加
+> Add MCP connection `http://10.118.81.110:3100/mcp/openwrt` with name "openwrt"
 
-> 帮我把 `http://10.118.81.110:3100/mcp/openwrt` 添加为 MCP 连接，名字用 "openwrt"
+AI calls `mcp_add_connection` — connection is immediately available and persisted.
 
-AI 会调用 `mcp_add_connection` 工具，连接立即可用并持久化。
+### Test connections
 
-### 测试连接
+Every connection has a **Test** button. HTTP tests in-browser; Stdio tests via server endpoint with download progress.
 
-已添加的连接上有 **Test** 按钮。HTTP 模式浏览器直连测试；Stdio 模式通过服务端 `/mcp-manager/test-stdio` 端点测试，显示下载进度条。
-
-## 文件结构
+## File structure
 
 ```
 dsh-mcp-manager/
-├── index.js              # 服务端插件：工具 + HTTP 端点 + 启动恢复
+├── index.js              # Server plugin: tools + HTTP endpoints + startup restore
 ├── lib/
-│   ├── client.js         # 浏览器插件：Settings UI 卡片
-│   ├── mcp-manager.js    # 运行时连接 create/list/remove（via ctx.loader）
-│   └── test-connection.js # 临时连接测试
+│   ├── client.js         # Browser plugin: Settings UI card
+│   ├── mcp-manager.js    # Runtime connection create/list/remove via ctx.loader
+│   └── test-connection.js # One-shot connection test
 ├── cordis.patch.yml      # Cordis loader patch
 └── package.json
 ```
