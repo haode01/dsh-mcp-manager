@@ -39,7 +39,7 @@ function saveConnectionsToDisk(list) {
 /**
  * Restore persisted connections from disk on startup.
  */
-function restoreConnections(ctx, section) {
+async function restoreConnections(ctx, section) {
   if (!Array.isArray(section)) return
   for (const cfg of section) {
     if (!cfg.serverName || !cfg.transport) continue
@@ -60,7 +60,7 @@ function restoreConnections(ctx, section) {
         if (cfg.token) mcpConfig.headers = { Authorization: `Bearer ${cfg.token}` }
       }
       if (cfg.timeout) mcpConfig.toolCallTimeoutMs = cfg.timeout
-      addConnection(ctx, mcpConfig).catch(() => {})
+      await addConnection(ctx, mcpConfig)
     } catch (_) { /* skip bad entries */ }
   }
 }
@@ -74,7 +74,7 @@ async function reconcileManagedConnections(ctx, section) {
     try { await removeConnection(ctx, conn.serverName) } catch (_) {}
   }
   if (Array.isArray(section)) {
-    restoreConnections(ctx, section)
+    await restoreConnections(ctx, section)
   }
 }
 
@@ -98,8 +98,10 @@ function normalizeConfig(cfg) {
 }
 
 export function apply(ctx) {
-  // 1. Startup: restore from file
-  restoreConnections(ctx, loadConnectionsFromDisk())
+  // 1. Startup: restore from file (async, runs in background)
+  ;(async function() {
+    await restoreConnections(ctx, loadConnectionsFromDisk())
+  })()
 
   // 2. HTTP endpoint — unified file read/write for the UI
   ctx.webServer.register({
