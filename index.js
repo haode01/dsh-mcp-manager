@@ -163,6 +163,7 @@ export function apply(ctx) {
         const result = await testConnection({
           transport: 'stdio',
           command: body.command,
+          cwd: body.cwd || undefined,
           toolCallTimeoutMs: body.timeout ?? 30_000,
         })
         res.writeHead(200, { 'Content-Type': 'application/json' })
