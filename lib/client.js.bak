@@ -110,7 +110,7 @@ window.__ModuleLoader__.load({
         labelToken: "Bearer token",
         hintToken: "Optional — stored in session only",
         labelCmd: "Command",
-        hintCmd: "Full command with args — e.g. npx -y @anthropic-ai/mcp-server-filesystem /tmp",
+        hintCmd: "Executable — e.g. npx, node, /usr/bin/python3",
         labelArgs: "Arguments",
         hintArgs: "One per line",
         labelEnv: "Environment variables",
@@ -156,7 +156,7 @@ window.__ModuleLoader__.load({
         labelToken: "Bearer Token",
         hintToken: "可选 — 仅存于会话中",
         labelCmd: "可执行文件",
-        hintCmd: "完整命令含参数 — 如 npx -y @anthropic-ai/mcp-server-filesystem /tmp",
+        hintCmd: "启动命令 — 如 npx、node、/usr/bin/python3",
         labelArgs: "参数",
         hintArgs: "每行一个",
         labelEnv: "环境变量",
@@ -279,6 +279,15 @@ window.__ModuleLoader__.load({
 
     // ── Helpers ──
     var NAME_RE = /^[A-Za-z0-9_-]{1,32}$/;
+    function parseLines(text) { return text.split("\n").map(function(l) { return l.trim(); }).filter(Boolean); }
+    function parseEnv(text) {
+      var out = {};
+      parseLines(text).forEach(function(line) {
+        var idx = line.indexOf("=");
+        if (idx > 0) out[line.slice(0, idx).trim()] = line.slice(idx + 1);
+      });
+      return out;
+    }
     var INIT_FIELDS = { name: "", url: "", token: "", cmd: "", timeout: "" };
 
     // ── Field ──
@@ -429,6 +438,11 @@ window.__ModuleLoader__.load({
           if (fields.token.trim()) conn.token = fields.token.trim();
         } else {
           conn.command = fields.cmd.trim();
+          var argLines = parseLines(fields.args);
+          if (argLines.length) conn.args = argLines;
+          var envMap = parseEnv(fields.env);
+          if (Object.keys(envMap).length) conn.env = envMap;
+          if (fields.cwd.trim()) conn.cwd = fields.cwd.trim();
           conn.timeout = parseInt(fields.timeout) || 60000;
         }
         var next = conns.concat([conn]);
@@ -436,28 +450,6 @@ window.__ModuleLoader__.load({
         saveToServer(next);
         setFields(INIT_FIELDS); setErrors({});
         setAdding(false);
-        // Auto-test after add
-        autoTestConn(conn, next.length - 1);
-      }
-
-      function autoTestConn(conn, idx) {
-        var copy = Object.assign({}, conn, { _testing: true, _testErr: "", _tools: undefined, _progress: 0 });
-        updateConn(idx, copy);
-        if (conn.transport === "streamable-http") {
-          var url2 = conn.url; var token2 = conn.token || "";
-          mcpCall(url2, token2, "initialize", 0, { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "dsh-mcp-manager", version: "0.1.0" } })
-            .then(function(ir) { if (ir.error) throw new Error(ir.error.message || "Init failed"); return mcpCall(url2, token2, "tools/list", 1, {}); })
-            .then(function(tr) { if (tr.error) throw new Error(tr.error.message || "tools/list failed"); return (tr.result && tr.result.tools) ? tr.result.tools : []; })
-            .then(function(tl) { var names = tl.map(function(t) { return t.name; }); var done = Object.assign({}, copy, { _testing: false, _testErr: "", _tools: names, _progress: undefined }); updateConn(idx, done); })
-            .catch(function(err) { var done = Object.assign({}, copy, { _testing: false, _testErr: err.message || "Connection failed", _tools: [], _progress: undefined }); updateConn(idx, done); });
-        } else {
-          var body = { command: conn.command }; if (conn.timeout) body.timeout = conn.timeout;
-          var pInterval = setInterval(function() { var cp = Object.assign({}, copy); cp._progress = Math.min(99, (cp._progress || 0) + Math.random() * 12); updateConn(idx, cp); }, 600);
-          fetch("/mcp-manager/test-stdio", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
-            .then(function(r) { return r.json(); })
-            .then(function(result) { clearInterval(pInterval); if (!result.success) throw new Error(result.error || "Test failed"); var done = Object.assign({}, copy, { _testing: false, _testErr: "", _tools: (result.tools || []).map(function(t) { return t.name; }), _progress: 100 }); updateConn(idx, done); })
-            .catch(function(err) { clearInterval(pInterval); var done = Object.assign({}, copy, { _testing: false, _testErr: err.message || "Connection failed", _tools: [], _progress: undefined }); updateConn(idx, done); });
-        }
       }
 
       function handleRemove(serverName) {
@@ -524,12 +516,17 @@ window.__ModuleLoader__.load({
                   !isHttp ? jsx.jsxs(jsx.Fragment, { children: [
                     jsx.jsx(Field, {
                       id: "mc-f-cmd", label: t.labelCmd, hint: t.hintCmd, error: errors.cmd,
-                      children: jsx.jsx("input", { id: "mc-f-cmd", className: "mc-input" + (errors.cmd ? " is-err" : ""), type: "text", placeholder: "npx -y @anthropic-ai/mcp-server-filesystem /tmp", value: fields.cmd, disabled: adding, onChange: function(e) { setField("cmd", e.target.value); } }),
+                      children: jsx.jsx("input", { id: "mc-f-cmd", className: "mc-input" + (errors.cmd ? " is-err" : ""), type: "text", placeholder: "npx", value: fields.cmd, disabled: adding, onChange: function(e) { setField("cmd", e.target.value); } }),
                     }),
                     jsx.jsx(Field, {
-                      id: "mc-f-timeout", label: t.labelTimeout, hint: t.hintTimeout,
-                      children: jsx.jsx("input", { id: "mc-f-timeout", className: "mc-input", type: "text", inputMode: "numeric", placeholder: "60000", value: fields.timeout, disabled: adding, onChange: function(e) { setField("timeout", e.target.value); } }),
+                      id: "mc-f-args", label: t.labelArgs, hint: t.hintArgs,
+                      children: jsx.jsx("textarea", { id: "mc-f-args", className: "mc-textarea", placeholder: "-y\n@modelcontextprotocol/server-filesystem", value: fields.args, disabled: adding, onChange: function(e) { setField("args", e.target.value); } }),
                     }),
+                    jsx.jsxs("div", { className: "mc-row2", children: [
+                      jsx.jsx(Field, { id: "mc-f-cwd", label: t.labelCwd, hint: t.hintCwd, children: jsx.jsx("input", { id: "mc-f-cwd", className: "mc-input", type: "text", placeholder: "/home/arc", value: fields.cwd, disabled: adding, onChange: function(e) { setField("cwd", e.target.value); } }) }),
+                      jsx.jsx(Field, { id: "mc-f-timeout", label: t.labelTimeout, hint: t.hintTimeout, children: jsx.jsx("input", { id: "mc-f-timeout", className: "mc-input", type: "text", inputMode: "numeric", placeholder: "60000", value: fields.timeout, disabled: adding, onChange: function(e) { setField("timeout", e.target.value); } }) }),
+                    ]}),
+                    jsx.jsx(Field, { id: "mc-f-env", label: t.labelEnv, hint: t.hintEnv, children: jsx.jsx("textarea", { id: "mc-f-env", className: "mc-textarea", placeholder: "NODE_ENV=production", value: fields.env, disabled: adding, onChange: function(e) { setField("env", e.target.value); } }) }),
                   ]}) : null,
                   jsx.jsx("div", { className: "mc-footer", children: jsx.jsx("button", { type: "button", className: "mc-btn mc-btn-primary", disabled: adding, onClick: handleAdd, children: adding ? t.btnAdding : t.btnAdd }) }),
                 ],

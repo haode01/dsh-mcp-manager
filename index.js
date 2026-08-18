@@ -147,6 +147,33 @@ export function apply(ctx) {
     },
   })
 
+  // 3. HTTP endpoint — stdio test (from browser)
+  ctx.webServer.register({
+    kind: 'exact',
+    path: '/mcp-manager/test-stdio',
+    handler: async (req, res) => {
+      if (req.method !== 'POST') {
+        res.writeHead(405); res.end('Method Not Allowed'); return
+      }
+      try {
+        const chunks = []
+        for await (const chunk of req) chunks.push(chunk)
+        const body = JSON.parse(Buffer.concat(chunks).toString('utf-8'))
+        if (!body.command) throw new Error('command is required')
+        const result = await testConnection({
+          transport: 'stdio',
+          command: body.command,
+          toolCallTimeoutMs: body.timeout ?? 30_000,
+        })
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify(result))
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: false, toolCount: 0, tools: [], error: err.message }))
+      }
+    },
+  })
+
   // ─── Tools ───
 
   // Tool 1: List connections
